@@ -52,11 +52,12 @@ export function registerCommands(bot: Bot<BotContext>) {
       }
 
       if (user) {
-        const { text, keyboard } = generateDashboard(user, ctx.me.username);
+        const botUsername = ctx.me?.username || 'AgroUSDTbot';
+        const { text, keyboard } = generateDashboard(user, botUsername);
         await ctx.reply(text, { reply_markup: keyboard, parse_mode: 'HTML' });
       }
     } catch (err) {
-      console.error("DB Error on /start:", err);
+      console.error("Error on /start:", err);
       await ctx.reply("An error occurred. Please try again later.");
     }
   });

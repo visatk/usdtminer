@@ -26,7 +26,8 @@ export function registerCallbacks(bot: Bot<BotContext>) {
         user.balance += claimable;
         user.last_claim_time = now;
         
-        const { text, keyboard } = generateDashboard(user, ctx.me.username);
+        const botUsername = ctx.me?.username || 'AgroUSDTbot';
+        const { text, keyboard } = generateDashboard(user, botUsername);
         await ctx.editMessageText(text, { reply_markup: keyboard, parse_mode: 'HTML' });
         await ctx.answerCallbackQuery(`Successfully claimed ${claimable.toFixed(4)} USDT!`);
       } else {
@@ -42,7 +43,8 @@ export function registerCallbacks(bot: Bot<BotContext>) {
     const user = ctx.sessionUser;
     if (!user) return;
     
-    const { text, keyboard } = generateDashboard(user, ctx.me.username);
+    const botUsername = ctx.me?.username || 'AgroUSDTbot';
+    const { text, keyboard } = generateDashboard(user, botUsername);
     await ctx.editMessageText(text, { reply_markup: keyboard, parse_mode: 'HTML' });
     await ctx.answerCallbackQuery();
   });
@@ -115,7 +117,8 @@ export function registerCallbacks(bot: Bot<BotContext>) {
     const user = ctx.sessionUser;
     if (!user) return;
 
-    const refLink = `https://t.me/${ctx.me.username}?start=ref_${user.telegram_id}`;
+    const botUsername = ctx.me?.username || 'AgroUSDTbot';
+    const refLink = `https://t.me/${botUsername}?start=ref_${user.telegram_id}`;
     const text = `🏷 <b>Refer & Earn</b>
 ──────────────────────────────
 💰 Per Referral: <code>${REFERRAL_BONUS} USDT</code>
