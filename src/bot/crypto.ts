@@ -11,15 +11,26 @@ export const PLANS = {
   2: { name: 'Elite', price: 50, rate: 1.20 }
 };
 
+const priceCache: Record<string, { price: number, timestamp: number }> = {};
+
 export async function getLivePrice(symbol: string): Promise<number> {
   if (symbol === 'USDTUSDT') return 1;
+
+  const now = Date.now();
+  if (priceCache[symbol] && now - priceCache[symbol].timestamp < 60000) {
+    return priceCache[symbol].price; // Return cached price if < 60s old
+  }
+
   try {
     const res = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`);
-    if (!res.ok) return 0;
+    if (!res.ok) return priceCache[symbol]?.price || 0; // fallback to stale cache
     const data: any = await res.json();
-    return parseFloat(data.price);
+    const price = parseFloat(data.price);
+    
+    priceCache[symbol] = { price, timestamp: now };
+    return price;
   } catch (e) {
-    return 0;
+    return priceCache[symbol]?.price || 0; // fallback to stale cache
   }
 }
 

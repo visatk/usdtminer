@@ -1,6 +1,6 @@
 import { Context } from 'grammy';
 import { BotContext, User } from '../types';
-import { getBNBPrice, getTRXPrice, verifyTronTransaction, verifyBscTransaction, PLANS } from './crypto';
+import { getLivePrice, verifyTronTransaction, verifyBscTransaction, PLANS } from './crypto';
 import { generateDashboard, EMOJIS, pe } from './ui';
 
 export async function sendPaymentDetails(ctx: Context & BotContext, method: string, planId: number) {
@@ -14,13 +14,13 @@ export async function sendPaymentDetails(ctx: Context & BotContext, method: stri
 
   try {
     if (method === 'TRX') {
-      const price = await getTRXPrice();
-      finalAmount = plan.price / price;
+      const price = await getLivePrice('TRXUSDT');
+      finalAmount = price > 0 ? plan.price / price : plan.price * 8.5; // fallback
       symbol = 'TRX';
       address = 'TR59Wrms64FmmDbUQPdJULdQnsUD98QeYC';
     } else if (method === 'BNB') {
-      const price = await getBNBPrice();
-      finalAmount = plan.price / price;
+      const price = await getLivePrice('BNBUSDT');
+      finalAmount = price > 0 ? plan.price / price : plan.price / 600; // fallback
       symbol = 'BNB';
       address = '0x26C61a35D76656EFf940444b5D7c4261Afb37c95';
     } else if (method === 'USDT') {

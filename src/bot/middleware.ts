@@ -14,7 +14,9 @@ export const authMiddleware: MiddlewareFn<BotContext> = async (ctx, next) => {
       user.is_admin = 1;
     }
     
-    if (!user) {
+    if (user) {
+      ctx.sessionUser = user;
+    } else {
       if (ctx.hasCommand('start')) {
         await next();
       } else if (ctx.callbackQuery) {

@@ -10,7 +10,7 @@ export function registerCallbacks(bot: Bot<BotContext>) {
     const now = Date.now();
 
     try {
-      const user: User | null = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').bind(telegramId).first();
+      const user = ctx.sessionUser;
       if (!user) return ctx.answerCallbackQuery('User not found. Try /start.');
 
       const claimable = calculateClaimable(user, now);
@@ -23,12 +23,12 @@ export function registerCallbacks(bot: Bot<BotContext>) {
            return ctx.answerCallbackQuery({ text: 'Already claimed or processing!', show_alert: true });
         }
         
-        const updatedUser: User | null = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').bind(telegramId).first();
-        if (updatedUser) {
-          const { text, keyboard } = generateDashboard(updatedUser, ctx.me.username);
-          await ctx.editMessageText(text, { reply_markup: keyboard, parse_mode: 'HTML' });
-          await ctx.answerCallbackQuery(`Successfully claimed ${claimable.toFixed(4)} USDT!`);
-        }
+        user.balance += claimable;
+        user.last_claim_time = now;
+        
+        const { text, keyboard } = generateDashboard(user, ctx.me.username);
+        await ctx.editMessageText(text, { reply_markup: keyboard, parse_mode: 'HTML' });
+        await ctx.answerCallbackQuery(`Successfully claimed ${claimable.toFixed(4)} USDT!`);
       } else {
         await ctx.answerCallbackQuery('Nothing to claim yet.');
       }
@@ -39,8 +39,7 @@ export function registerCallbacks(bot: Bot<BotContext>) {
   });
 
   bot.callbackQuery('dashboard', async (ctx) => {
-    const db = ctx.env.DB;
-    const user: User | null = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').bind(ctx.from.id).first();
+    const user = ctx.sessionUser;
     if (!user) return;
     
     const { text, keyboard } = generateDashboard(user, ctx.me.username);
@@ -49,8 +48,7 @@ export function registerCallbacks(bot: Bot<BotContext>) {
   });
 
   bot.callbackQuery('wallet', async (ctx) => {
-    const db = ctx.env.DB;
-    const user: User | null = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').bind(ctx.from.id).first();
+    const user = ctx.sessionUser;
     if (!user) return;
 
     const text = `${pe(EMOJIS.card, '💳')} <b>My Wallet</b>
@@ -75,8 +73,7 @@ ${pe(EMOJIS.box, '🗃')} Referrals: <code>${user.referral_count}</code>
   });
 
   bot.callbackQuery('withdraw', async (ctx) => {
-    const db = ctx.env.DB;
-    const user: User | null = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').bind(ctx.from.id).first();
+    const user = ctx.sessionUser;
     if (!user) return;
 
     if (user.balance >= MIN_WITHDRAWAL) {
@@ -115,8 +112,7 @@ ${pe(EMOJIS.diamond, '💎')} Total USDT Mined: <code>${Number(totalMined).toFix
   });
 
   bot.callbackQuery('refer', async (ctx) => {
-    const db = ctx.env.DB;
-    const user: User | null = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').bind(ctx.from.id).first();
+    const user = ctx.sessionUser;
     if (!user) return;
 
     const refLink = `https://t.me/${ctx.me.username}?start=ref_${user.telegram_id}`;

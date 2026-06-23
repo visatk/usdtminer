@@ -13,13 +13,18 @@ export function registerCommands(bot: Bot<BotContext>) {
     const now = Date.now();
 
     try {
-      await db.prepare('UPDATE users SET first_name = ?, state = NULL, state_data = NULL WHERE telegram_id = ?')
-          .bind(firstName, telegramId)
-          .run();
+      let user = ctx.sessionUser;
 
-      let user: User | null = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').bind(telegramId).first();
-
-      if (!user) {
+      if (user) {
+        // User exists, just reset state and update name
+        await db.prepare('UPDATE users SET first_name = ?, state = NULL, state_data = NULL WHERE telegram_id = ?')
+            .bind(firstName, telegramId)
+            .run();
+        user.first_name = firstName;
+        user.state = null;
+        user.state_data = null;
+      } else {
+        // New user
         let referrerId = null;
         const isAdmin = (ctx.env.ADMIN_TELEGRAM_ID && telegramId.toString() === ctx.env.ADMIN_TELEGRAM_ID) ? 1 : 0;
         let statements: any[] = [];
@@ -38,12 +43,11 @@ export function registerCommands(bot: Bot<BotContext>) {
         }
 
         statements.push(
-          db.prepare('INSERT INTO users (telegram_id, first_name, balance, last_claim_time, referral_count, referrer_id, created_at, is_admin) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+          db.prepare('INSERT OR IGNORE INTO users (telegram_id, first_name, balance, last_claim_time, referral_count, referrer_id, created_at, is_admin) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
             .bind(telegramId, firstName, 0, now, 0, referrerId, now, isAdmin)
         );
 
         await db.batch(statements);
-
         user = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').bind(telegramId).first();
       }
 
@@ -58,13 +62,13 @@ export function registerCommands(bot: Bot<BotContext>) {
   });
 
   bot.command('admin', async (ctx) => {
-    const db = ctx.env.DB;
-    const user: User | null = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').bind(ctx.from?.id).first();
+    const user = ctx.sessionUser;
     
     if (!user || user.is_admin === 0) {
       return ctx.reply("You do not have permission to use this command.");
     }
 
+    const db = ctx.env.DB;
     const statsQuery: any = await db.prepare('SELECT COUNT(*) as total_users, SUM(balance) as total_mined FROM users').first();
     const totalUsers = statsQuery?.total_users || 0;
     const totalMined = statsQuery?.total_mined || 0;
@@ -81,8 +85,7 @@ ${pe(EMOJIS.diamond, '💎')} <b>Total User Balances:</b> <code>${Number(totalMi
   });
 
   bot.command('broadcast', async (ctx) => {
-    const db = ctx.env.DB;
-    const user: User | null = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').bind(ctx.from?.id).first();
+    const user = ctx.sessionUser;
     
     if (!user || user.is_admin === 0) {
       return ctx.reply("You do not have permission to use this command.");
@@ -93,39 +96,25 @@ ${pe(EMOJIS.diamond, '💎')} <b>Total User Balances:</b> <code>${Number(totalMi
       return ctx.reply("Please provide a message to broadcast.\nExample: `/broadcast Hello everyone!`", { parse_mode: 'Markdown' });
     }
 
-    await ctx.reply("⏳ Preparing broadcast... This may take a moment to enqueue.");
+    await ctx.reply("⏳ Preparing broadcast... The system will begin dispatching messages in the background.");
 
     try {
-      const { results } = await db.prepare('SELECT telegram_id FROM users').all();
-      
-      let currentBatch: MessageSendRequest<QueueMessage>[] = [];
-      let totalQueued = 0;
-
-      for (const row of results) {
-        currentBatch.push({ body: { type: 'admin_broadcast', telegram_id: row.telegram_id as number, text: messageText } });
-        
-        if (currentBatch.length === 100) {
-          await ctx.env.QUEUE.sendBatch(currentBatch);
-          totalQueued += 100;
-          currentBatch = [];
-        }
-      }
-
-      if (currentBatch.length > 0) {
-        await ctx.env.QUEUE.sendBatch(currentBatch);
-        totalQueued += currentBatch.length;
-      }
-
-      await ctx.reply(`✅ Broadcast successfully queued for ${totalQueued} users!`);
+      // Instead of querying all users synchronously and blocking the request,
+      // we queue an init message that the Queue consumer will process in chunks.
+      await ctx.env.QUEUE.send({
+        type: 'admin_broadcast_init',
+        text: messageText,
+        offset: 0
+      });
+      await ctx.reply(`✅ Broadcast successfully initialized!`);
     } catch (err) {
-      console.error("Broadcast queue error:", err);
-      await ctx.reply("Failed to queue broadcast. Please check logs.");
+      console.error("Broadcast init error:", err);
+      await ctx.reply("Failed to initialize broadcast. Please check logs.");
     }
   });
 
   bot.on('message:text', async (ctx) => {
-    const db = ctx.env.DB;
-    const user: User | null = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').bind(ctx.from.id).first();
+    const user = ctx.sessionUser;
     
     if (user && user.state === 'awaiting_txid') {
       const { handleTxIdInput } = await import('./payment');
