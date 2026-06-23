@@ -1,6 +1,6 @@
 import { Bot } from 'grammy';
 import { BotContext, User } from '../types';
-import { calculateClaimable, generateDashboard, REFERRAL_BONUS, MIN_WITHDRAWAL, EMOJIS, pe } from './ui';
+import { calculateClaimable, generateDashboard, REFERRAL_BONUS, MIN_WITHDRAWAL } from './ui';
 import { sendPaymentDetails } from './payment';
 
 export function registerCallbacks(bot: Bot<BotContext>) {
@@ -51,11 +51,11 @@ export function registerCallbacks(bot: Bot<BotContext>) {
     const user = ctx.sessionUser;
     if (!user) return;
 
-    const text = `${pe(EMOJIS.card, '💳')} <b>My Wallet</b>
+    const text = `💳 <b>My Wallet</b>
 ──────────────────────────────
-${pe(EMOJIS.bag, '💰')} Balance: <code>${user.balance.toFixed(4)} USDT</code>
-${pe(EMOJIS.chart, '📈')} Total Earned: <code>${user.balance.toFixed(4)} USDT</code>
-${pe(EMOJIS.box, '🗃')} Referrals: <code>${user.referral_count}</code>
+💰 Balance: <code>${user.balance.toFixed(4)} USDT</code>
+📈 Total Earned: <code>${user.balance.toFixed(4)} USDT</code>
+🗃 Referrals: <code>${user.referral_count}</code>
 ──────────────────────────────
 ⚠️ <b>Withdrawal Rules</b>
 • Minimum USDT: ${MIN_WITHDRAWAL} USDT
@@ -63,8 +63,8 @@ ${pe(EMOJIS.box, '🗃')} Referrals: <code>${user.referral_count}</code>
 
     const keyboard = {
       inline_keyboard: [
-        [{ text: 'Withdraw', callback_data: 'withdraw', style: 'primary', icon_custom_emoji_id: EMOJIS.card }],
-        [{ text: 'Back', callback_data: 'dashboard', style: 'secondary', icon_custom_emoji_id: EMOJIS.rocket }]
+        [{ text: '💳 Withdraw', callback_data: 'withdraw', style: 'primary' }],
+        [{ text: '🔙 Back', callback_data: 'dashboard', style: 'secondary' }]
       ]
     };
     
@@ -91,16 +91,16 @@ ${pe(EMOJIS.box, '🗃')} Referrals: <code>${user.referral_count}</code>
       const totalUsers = statsQuery?.total_users || 0;
       const totalMined = statsQuery?.total_mined || 0;
 
-      const text = `${pe(EMOJIS.stats, '📊')} <b>Global Statistics</b>
+      const text = `📊 <b>Global Statistics</b>
 ──────────────────────────────
-${pe(EMOJIS.tag, '👥')} Total Users: <code>${totalUsers.toLocaleString()}</code>
-${pe(EMOJIS.diamond, '💎')} Total USDT Mined: <code>${Number(totalMined).toFixed(4)}</code>
+👥 Total Users: <code>${totalUsers.toLocaleString()}</code>
+💎 Total USDT Mined: <code>${Number(totalMined).toFixed(4)}</code>
 
 <i>Keep mining to be part of our growing community!</i>`;
 
       const keyboard = {
         inline_keyboard: [
-          [{ text: 'Back', callback_data: 'dashboard', style: 'secondary', icon_custom_emoji_id: EMOJIS.rocket }]
+          [{ text: '🔙 Back', callback_data: 'dashboard', style: 'secondary' }]
         ]
       };
       
@@ -116,18 +116,18 @@ ${pe(EMOJIS.diamond, '💎')} Total USDT Mined: <code>${Number(totalMined).toFix
     if (!user) return;
 
     const refLink = `https://t.me/${ctx.me.username}?start=ref_${user.telegram_id}`;
-    const text = `${pe(EMOJIS.tag, '🏷')} <b>Refer & Earn</b>
+    const text = `🏷 <b>Refer & Earn</b>
 ──────────────────────────────
-${pe(EMOJIS.bag, '💰')} Per Referral: <code>${REFERRAL_BONUS} USDT</code>
-${pe(EMOJIS.chart, '📈')} Your Referrals: <code>${user.referral_count}</code>
+💰 Per Referral: <code>${REFERRAL_BONUS} USDT</code>
+📈 Your Referrals: <code>${user.referral_count}</code>
 
-${pe(EMOJIS.chat, '💬')} <b>Link:</b>
+💬 <b>Link:</b>
 <code>${refLink}</code>`;
     
     const keyboard = {
       inline_keyboard: [
-        [{ text: 'Share Link', url: `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent('Join me and mine USDT for free!')}`, style: 'primary', icon_custom_emoji_id: EMOJIS.chat }],
-        [{ text: 'Back', callback_data: 'dashboard', style: 'secondary', icon_custom_emoji_id: EMOJIS.rocket }]
+        [{ text: '💬 Share Link', url: `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent('Join me and mine USDT for free!')}`, style: 'primary' }],
+        [{ text: '🔙 Back', callback_data: 'dashboard', style: 'secondary' }]
       ]
     };
     
@@ -136,7 +136,7 @@ ${pe(EMOJIS.chat, '💬')} <b>Link:</b>
   });
 
   bot.callbackQuery('upgrade_plan', async (ctx) => {
-    const text = `${pe(EMOJIS.star, '⭐')} <b>Upgrade Mining Plan</b>
+    const text = `⭐ <b>Upgrade Mining Plan</b>
 ──────────────────────────────
 Choose a plan to boost your mining rate. Plans are permanent.
 
@@ -150,9 +150,9 @@ Rate: 1.20 USDT/hr`;
     
     const keyboard = {
       inline_keyboard: [
-        [{ text: 'Buy Pro (10 USDT)', callback_data: 'buy_plan_1', style: 'primary', icon_custom_emoji_id: EMOJIS.star }],
-        [{ text: 'Buy Elite (50 USDT)', callback_data: 'buy_plan_2', style: 'success', icon_custom_emoji_id: EMOJIS.diamond }],
-        [{ text: 'Back', callback_data: 'dashboard', style: 'secondary', icon_custom_emoji_id: EMOJIS.rocket }]
+        [{ text: '⭐ Buy Pro (10 USDT)', callback_data: 'buy_plan_1', style: 'primary' }],
+        [{ text: '💎 Buy Elite (50 USDT)', callback_data: 'buy_plan_2', style: 'success' }],
+        [{ text: '🔙 Back', callback_data: 'dashboard', style: 'secondary' }]
       ]
     };
       
@@ -164,7 +164,7 @@ Rate: 1.20 USDT/hr`;
     const planId = parseInt(ctx.match[1], 10);
     const planName = planId === 1 ? 'Pro' : 'Elite';
     
-    const text = `${pe(EMOJIS.card, '🛒')} <b>Select Payment Method</b>
+    const text = `🛒 <b>Select Payment Method</b>
 ──────────────────────────────
 You are buying the <b>${planName} Plan</b>.
 
@@ -175,7 +175,7 @@ Select your preferred cryptocurrency to pay with:`;
         [{ text: 'USDT (TRC20)', callback_data: `pay_method_USDT_${planId}`, style: 'primary' }],
         [{ text: 'TRX (Tron)', callback_data: `pay_method_TRX_${planId}`, style: 'primary' }],
         [{ text: 'BNB (BEP20)', callback_data: `pay_method_BNB_${planId}`, style: 'primary' }],
-        [{ text: 'Back', callback_data: 'upgrade_plan', style: 'secondary', icon_custom_emoji_id: EMOJIS.rocket }]
+        [{ text: '🔙 Back', callback_data: 'upgrade_plan', style: 'secondary' }]
       ]
     };
       

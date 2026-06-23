@@ -1,6 +1,6 @@
 import { Bot } from 'grammy';
 import { BotContext, User, QueueMessage } from '../types';
-import { REFERRAL_BONUS, generateDashboard, EMOJIS, pe } from './ui';
+import { REFERRAL_BONUS, generateDashboard } from './ui';
 
 export function registerCommands(bot: Bot<BotContext>) {
   bot.command('start', async (ctx) => {
@@ -73,10 +73,10 @@ export function registerCommands(bot: Bot<BotContext>) {
     const totalUsers = statsQuery?.total_users || 0;
     const totalMined = statsQuery?.total_mined || 0;
 
-    const text = `${pe(EMOJIS.star, '👑')} <b>Admin Dashboard</b>
+    const text = `👑 <b>Admin Dashboard</b>
 ──────────────────────────────
-${pe(EMOJIS.tag, '👥')} <b>Total Users:</b> <code>${totalUsers.toLocaleString()}</code>
-${pe(EMOJIS.diamond, '💎')} <b>Total User Balances:</b> <code>${Number(totalMined).toFixed(4)} USDT</code>
+👥 <b>Total Users:</b> <code>${totalUsers.toLocaleString()}</code>
+💎 <b>Total User Balances:</b> <code>${Number(totalMined).toFixed(4)} USDT</code>
 
 📢 To broadcast a message to all users, use:
 <code>/broadcast Your message here</code>`;
