@@ -1,6 +1,6 @@
-import { Bot, InlineKeyboard } from 'grammy';
+import { Bot } from 'grammy';
 import { BotContext, User } from '../types';
-import { calculateClaimable, generateDashboard, REFERRAL_BONUS, MIN_WITHDRAWAL } from './ui';
+import { calculateClaimable, generateDashboard, REFERRAL_BONUS, MIN_WITHDRAWAL, EMOJIS, pe } from './ui';
 import { sendPaymentDetails } from './payment';
 
 export function registerCallbacks(bot: Bot<BotContext>) {
@@ -53,10 +53,22 @@ export function registerCallbacks(bot: Bot<BotContext>) {
     const user: User | null = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').bind(ctx.from.id).first();
     if (!user) return;
 
-    const text = `💳 <b>My Wallet</b>\n━━━━━━━━━━━━━━━━━━━━\n\n💰 <b>Current Balance:</b> <code>${user.balance.toFixed(4)} USDT</code>\n\n<i>Minimum withdrawal is ${MIN_WITHDRAWAL} USDT.</i>`;
-    const keyboard = new InlineKeyboard()
-      .text('💸 Withdraw', 'withdraw').row()
-      .text('🔙 Back', 'dashboard');
+    const text = `${pe(EMOJIS.card, '💳')} <b>My Wallet</b>
+──────────────────────────────
+${pe(EMOJIS.bag, '💰')} Balance: <code>${user.balance.toFixed(4)} USDT</code>
+${pe(EMOJIS.chart, '📈')} Total Earned: <code>${user.balance.toFixed(4)} USDT</code>
+${pe(EMOJIS.box, '🗃')} Referrals: <code>${user.referral_count}</code>
+──────────────────────────────
+⚠️ <b>Withdrawal Rules</b>
+• Minimum USDT: ${MIN_WITHDRAWAL} USDT
+• Cooldown: 14 days`;
+
+    const keyboard = {
+      inline_keyboard: [
+        [{ text: 'Withdraw', callback_data: 'withdraw', style: 'primary', icon_custom_emoji_id: EMOJIS.card }],
+        [{ text: 'Back', callback_data: 'dashboard', style: 'secondary', icon_custom_emoji_id: EMOJIS.rocket }]
+      ]
+    };
     
     await ctx.editMessageText(text, { reply_markup: keyboard, parse_mode: 'HTML' });
     await ctx.answerCallbackQuery();
@@ -82,8 +94,18 @@ export function registerCallbacks(bot: Bot<BotContext>) {
       const totalUsers = statsQuery?.total_users || 0;
       const totalMined = statsQuery?.total_mined || 0;
 
-      const text = `📊 <b>Global Statistics</b>\n━━━━━━━━━━━━━━━━━━━━\n\n👥 <b>Total Users:</b> <code>${totalUsers.toLocaleString()}</code>\n💎 <b>Total USDT Mined:</b> <code>${Number(totalMined).toFixed(4)}</code>\n\n<i>Keep mining to be part of our growing community!</i>`;
-      const keyboard = new InlineKeyboard().text('🔙 Back', 'dashboard');
+      const text = `${pe(EMOJIS.stats, '📊')} <b>Global Statistics</b>
+──────────────────────────────
+${pe(EMOJIS.tag, '👥')} Total Users: <code>${totalUsers.toLocaleString()}</code>
+${pe(EMOJIS.diamond, '💎')} Total USDT Mined: <code>${Number(totalMined).toFixed(4)}</code>
+
+<i>Keep mining to be part of our growing community!</i>`;
+
+      const keyboard = {
+        inline_keyboard: [
+          [{ text: 'Back', callback_data: 'dashboard', style: 'secondary', icon_custom_emoji_id: EMOJIS.rocket }]
+        ]
+      };
       
       await ctx.editMessageText(text, { reply_markup: keyboard, parse_mode: 'HTML' });
       await ctx.answerCallbackQuery();
@@ -98,23 +120,45 @@ export function registerCallbacks(bot: Bot<BotContext>) {
     if (!user) return;
 
     const refLink = `https://t.me/${ctx.me.username}?start=ref_${user.telegram_id}`;
-    const text = `🔗 <b>Refer & Earn</b>\n━━━━━━━━━━━━━━━━━━━━\n\nInvite friends and earn <b>${REFERRAL_BONUS} USDT</b> for every valid referral!\n\n👥 <b>Your Total Referrals:</b> <code>${user.referral_count}</code>\n💰 <b>Earnings from Referrals:</b> <code>${(user.referral_count * REFERRAL_BONUS).toFixed(4)} USDT</code>\n\n👇 <b>Your Referral Link:</b>\n${refLink}`;
+    const text = `${pe(EMOJIS.tag, '🏷')} <b>Refer & Earn</b>
+──────────────────────────────
+${pe(EMOJIS.bag, '💰')} Per Referral: <code>${REFERRAL_BONUS} USDT</code>
+${pe(EMOJIS.chart, '📈')} Your Referrals: <code>${user.referral_count}</code>
+
+${pe(EMOJIS.chat, '💬')} <b>Link:</b>
+<code>${refLink}</code>`;
     
-    const keyboard = new InlineKeyboard()
-      .url('🚀 Share Link', `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent('Join me and mine USDT for free!')}`).row()
-      .text('🔙 Back', 'dashboard');
+    const keyboard = {
+      inline_keyboard: [
+        [{ text: 'Share Link', url: `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent('Join me and mine USDT for free!')}`, style: 'primary', icon_custom_emoji_id: EMOJIS.chat }],
+        [{ text: 'Back', callback_data: 'dashboard', style: 'secondary', icon_custom_emoji_id: EMOJIS.rocket }]
+      ]
+    };
     
     await ctx.editMessageText(text, { reply_markup: keyboard, parse_mode: 'HTML', disable_web_page_preview: true });
     await ctx.answerCallbackQuery();
   });
 
   bot.callbackQuery('upgrade_plan', async (ctx) => {
-    const text = `⭐ <b>Upgrade Mining Plan</b>\n━━━━━━━━━━━━━━━━━━━━\n\nChoose a plan to boost your mining rate. Plans are permanent.\n\n<b>1. Pro Plan</b>\nPrice: 10 USDT\nRate: 0.20 USDT/hr\n\n<b>2. Elite Plan</b>\nPrice: 50 USDT\nRate: 1.20 USDT/hr`;
+    const text = `${pe(EMOJIS.star, '⭐')} <b>Upgrade Mining Plan</b>
+──────────────────────────────
+Choose a plan to boost your mining rate. Plans are permanent.
+
+<b>1. Pro Plan</b>
+Price: 10 USDT
+Rate: 0.20 USDT/hr
+
+<b>2. Elite Plan</b>
+Price: 50 USDT
+Rate: 1.20 USDT/hr`;
     
-    const keyboard = new InlineKeyboard()
-      .text('🛒 Buy Pro (10 USDT)', 'buy_plan_1').row()
-      .text('🛒 Buy Elite (50 USDT)', 'buy_plan_2').row()
-      .text('🔙 Back', 'dashboard');
+    const keyboard = {
+      inline_keyboard: [
+        [{ text: 'Buy Pro (10 USDT)', callback_data: 'buy_plan_1', style: 'primary', icon_custom_emoji_id: EMOJIS.star }],
+        [{ text: 'Buy Elite (50 USDT)', callback_data: 'buy_plan_2', style: 'success', icon_custom_emoji_id: EMOJIS.diamond }],
+        [{ text: 'Back', callback_data: 'dashboard', style: 'secondary', icon_custom_emoji_id: EMOJIS.rocket }]
+      ]
+    };
       
     await ctx.editMessageText(text, { reply_markup: keyboard, parse_mode: 'HTML' });
     await ctx.answerCallbackQuery();
@@ -124,12 +168,20 @@ export function registerCallbacks(bot: Bot<BotContext>) {
     const planId = parseInt(ctx.match[1], 10);
     const planName = planId === 1 ? 'Pro' : 'Elite';
     
-    const text = `🛒 <b>Select Payment Method</b>\n━━━━━━━━━━━━━━━━━━━━\n\nYou are buying the <b>${planName} Plan</b>.\n\nSelect your preferred cryptocurrency to pay with:`;
-    const keyboard = new InlineKeyboard()
-      .text('USDT (TRC20)', `pay_method_USDT_${planId}`).row()
-      .text('TRX (Tron)', `pay_method_TRX_${planId}`).row()
-      .text('BNB (BEP20)', `pay_method_BNB_${planId}`).row()
-      .text('🔙 Back', 'upgrade_plan');
+    const text = `${pe(EMOJIS.card, '🛒')} <b>Select Payment Method</b>
+──────────────────────────────
+You are buying the <b>${planName} Plan</b>.
+
+Select your preferred cryptocurrency to pay with:`;
+    
+    const keyboard = {
+      inline_keyboard: [
+        [{ text: 'USDT (TRC20)', callback_data: `pay_method_USDT_${planId}`, style: 'primary' }],
+        [{ text: 'TRX (Tron)', callback_data: `pay_method_TRX_${planId}`, style: 'primary' }],
+        [{ text: 'BNB (BEP20)', callback_data: `pay_method_BNB_${planId}`, style: 'primary' }],
+        [{ text: 'Back', callback_data: 'upgrade_plan', style: 'secondary', icon_custom_emoji_id: EMOJIS.rocket }]
+      ]
+    };
       
     await ctx.editMessageText(text, { reply_markup: keyboard, parse_mode: 'HTML' });
     await ctx.answerCallbackQuery();
