@@ -79,7 +79,13 @@ export function registerCallbacks(bot: Bot<BotContext>) {
     if (!user) return;
 
     if (user.balance >= MIN_WITHDRAWAL) {
-      await ctx.answerCallbackQuery({ text: 'Withdrawal requests are currently being processed manually. Please contact support.', show_alert: true });
+      const db = ctx.env.DB;
+      await db.prepare('UPDATE users SET state = ? WHERE telegram_id = ?')
+        .bind('awaiting_withdrawal_address', user.telegram_id)
+        .run();
+        
+      await ctx.editMessageText(`🏦 <b>Withdrawal Request</b>\n──────────────────────────────\nAvailable Balance: <code>${user.balance.toFixed(4)} USDT</code>\n\nPlease reply with your <b>USDT (TRC20)</b> wallet address:`, { parse_mode: 'HTML' });
+      await ctx.answerCallbackQuery();
     } else {
       await ctx.answerCallbackQuery({ text: `You need at least ${MIN_WITHDRAWAL} USDT to withdraw.`, show_alert: true });
     }
@@ -205,5 +211,55 @@ Select your preferred cryptocurrency to pay with:`;
     
     // Actually await the payment details response
     await sendPaymentDetails(ctx, method, planId);
+  });
+
+  bot.callbackQuery(/^admin_approve_(\d+)$/, async (ctx) => {
+    const user = ctx.sessionUser;
+    if (!user || user.is_admin === 0) return ctx.answerCallbackQuery('Unauthorized');
+
+    const withdrawalId = parseInt(ctx.match[1], 10);
+    const db = ctx.env.DB;
+
+    const withdrawal: any = await db.prepare('SELECT * FROM withdrawals WHERE id = ?').bind(withdrawalId).first();
+    if (!withdrawal) return ctx.answerCallbackQuery('Withdrawal not found');
+    if (withdrawal.status !== 'pending') return ctx.answerCallbackQuery(`Already ${withdrawal.status}`);
+
+    await db.prepare('UPDATE withdrawals SET status = ? WHERE id = ?').bind('approved', withdrawalId).run();
+    
+    // Notify user
+    try {
+      await ctx.api.sendMessage(withdrawal.telegram_id, `✅ <b>Withdrawal Approved!</b>\n\nYour withdrawal of <code>${withdrawal.amount.toFixed(4)} USDT</code> has been approved and sent to your wallet.\n\nAddress: <code>${withdrawal.address}</code>`, { parse_mode: 'HTML' });
+    } catch(e) { console.error(e); }
+
+    const newText = ctx.callbackQuery.message?.text + '\n\n✅ <b>Status: APPROVED</b>';
+    await ctx.editMessageText(newText, { parse_mode: 'HTML' });
+    await ctx.answerCallbackQuery('Approved!');
+  });
+
+  bot.callbackQuery(/^admin_reject_(\d+)$/, async (ctx) => {
+    const user = ctx.sessionUser;
+    if (!user || user.is_admin === 0) return ctx.answerCallbackQuery('Unauthorized');
+
+    const withdrawalId = parseInt(ctx.match[1], 10);
+    const db = ctx.env.DB;
+
+    const withdrawal: any = await db.prepare('SELECT * FROM withdrawals WHERE id = ?').bind(withdrawalId).first();
+    if (!withdrawal) return ctx.answerCallbackQuery('Withdrawal not found');
+    if (withdrawal.status !== 'pending') return ctx.answerCallbackQuery(`Already ${withdrawal.status}`);
+
+    // Update status and refund user
+    await db.batch([
+      db.prepare('UPDATE withdrawals SET status = ? WHERE id = ?').bind('rejected', withdrawalId),
+      db.prepare('UPDATE users SET balance = balance + ? WHERE telegram_id = ?').bind(withdrawal.amount, withdrawal.telegram_id)
+    ]);
+    
+    // Notify user
+    try {
+      await ctx.api.sendMessage(withdrawal.telegram_id, `❌ <b>Withdrawal Rejected</b>\n\nYour withdrawal of <code>${withdrawal.amount.toFixed(4)} USDT</code> was rejected by the administrator.\nThe funds have been refunded to your bot balance.`, { parse_mode: 'HTML' });
+    } catch(e) { console.error(e); }
+
+    const newText = ctx.callbackQuery.message?.text + '\n\n❌ <b>Status: REJECTED & REFUNDED</b>';
+    await ctx.editMessageText(newText, { parse_mode: 'HTML' });
+    await ctx.answerCallbackQuery('Rejected and refunded!');
   });
 }

@@ -116,10 +116,60 @@ export function registerCommands(bot: Bot<BotContext>) {
 
   bot.on('message:text', async (ctx) => {
     const user = ctx.sessionUser;
+    if (!user) return;
     
-    if (user && user.state === 'awaiting_txid') {
+    if (user.state === 'awaiting_txid') {
       const { handleTxIdInput } = await import('./payment');
       await handleTxIdInput(ctx, user);
+      return;
+    }
+
+    if (user.state === 'awaiting_withdrawal_address') {
+      const address = ctx.message.text;
+      const db = ctx.env.DB;
+
+      if (!address || address.length < 10) {
+        return ctx.reply("Please provide a valid USDT TRC20 wallet address.");
+      }
+
+      const amount = user.balance;
+      if (amount < 15) {
+        await db.prepare('UPDATE users SET state = NULL WHERE telegram_id = ?').bind(user.telegram_id).run();
+        return ctx.reply("Insufficient balance for withdrawal.");
+      }
+
+      try {
+        // Deduct balance and clear state
+        await db.prepare('UPDATE users SET balance = 0, state = NULL WHERE telegram_id = ?').bind(user.telegram_id).run();
+
+        // Create withdrawal record
+        const insertRes: any = await db.prepare('INSERT INTO withdrawals (telegram_id, amount, address, created_at) VALUES (?, ?, ?, ?) RETURNING id')
+          .bind(user.telegram_id, amount, address, Date.now())
+          .first();
+          
+        const withdrawalId = insertRes?.id;
+
+        await ctx.reply(`✅ <b>Withdrawal Requested!</b>\n\nAmount: <code>${amount.toFixed(4)} USDT</code>\nAddress: <code>${address}</code>\n\nYour request has been sent to the administrators for approval.`, { parse_mode: 'HTML' });
+
+        // Notify Admin
+        if (ctx.env.ADMIN_TELEGRAM_ID) {
+          const adminKeyboard = {
+            inline_keyboard: [
+              [
+                { text: '✅ Approve', callback_data: `admin_approve_${withdrawalId}` },
+                { text: '❌ Reject', callback_data: `admin_reject_${withdrawalId}` }
+              ]
+            ]
+          };
+          
+          const adminMsg = `🚨 <b>New Withdrawal Request!</b>\n\n<b>ID:</b> ${withdrawalId}\n<b>User ID:</b> <code>${user.telegram_id}</code>\n<b>User Name:</b> ${user.first_name}\n<b>Amount:</b> <code>${amount.toFixed(4)} USDT</code>\n<b>Address:</b> <code>${address}</code>`;
+          
+          await ctx.api.sendMessage(ctx.env.ADMIN_TELEGRAM_ID, adminMsg, { reply_markup: adminKeyboard, parse_mode: 'HTML' });
+        }
+      } catch (err) {
+        console.error("Withdrawal error:", err);
+        await ctx.reply("Failed to process withdrawal. Please contact support.");
+      }
       return;
     }
   });
