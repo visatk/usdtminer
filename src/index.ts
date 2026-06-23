@@ -9,11 +9,7 @@ export default {
 	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname === '/webhook') {
-      const bot = createBot(env.TELEGRAM_BOT_TOKEN);
-      bot.use(async (botCtx, next) => {
-        botCtx.env = env;
-        await next();
-      });
+      const bot = createBot(env.TELEGRAM_BOT_TOKEN, env);
       const handleUpdate = webhookCallback(bot, 'cloudflare-mod');
       return handleUpdate(request);
     }
@@ -24,17 +20,21 @@ export default {
     const now = Date.now();
     const requiredDiffMs = THRESHOLD / (MINING_RATE_PER_HR / 3600000);
     const timeThreshold = now - requiredDiffMs;
+    // We only want to ping users who JUST crossed the threshold in the last hour to prevent spamming them every hour
+    const oneHourMs = 3600000;
+    const lowerBoundThreshold = timeThreshold - oneHourMs;
 
     try {
       const { results } = await env.DB.prepare(
-        'SELECT telegram_id, last_claim_time FROM users WHERE last_claim_time <= ?'
-      ).bind(timeThreshold).all();
+        'SELECT telegram_id, last_claim_time FROM users WHERE last_claim_time <= ? AND last_claim_time > ?'
+      ).bind(timeThreshold, lowerBoundThreshold).all();
 
       if (results && results.length > 0) {
         let currentBatch: MessageSendRequest<QueueMessage>[] = [];
         
         for (const row of results) {
-          const claimable = ((now - (row.last_claim_time as number)) / 3600000) * MINING_RATE_PER_HR;
+          const hours = ((now - (row.last_claim_time as number)) / 3600000);
+          const claimable = Math.min(hours, 24) * MINING_RATE_PER_HR;
           currentBatch.push({ body: { type: 'claim_reminder', telegram_id: row.telegram_id as number, claimable_amount: claimable } });
           
           if (currentBatch.length === 100) {

@@ -1,12 +1,19 @@
 import { Bot, InlineKeyboard, GrammyError, HttpError } from 'grammy';
-import { BotContext, User, QueueMessage } from './types';
+import { BotContext, User, QueueMessage, Env } from './types';
 
 const MINING_RATE_PER_HR = 0.05;
 const REFERRAL_BONUS = 0.25;
 const MIN_WITHDRAWAL = 15.0;
 
-export function createBot(token: string) {
+export function createBot(token: string, env?: Env) {
   const bot = new Bot<BotContext>(token);
+
+  if (env) {
+    bot.use(async (ctx, next) => {
+      ctx.env = env;
+      await next();
+    });
+  }
 
   // --- Global Error Handler ---
   bot.catch((err) => {
@@ -268,10 +275,13 @@ export function createBot(token: string) {
   return bot;
 }
 
+const MAX_MINING_HOURS = 24;
+
 function calculateClaimable(lastClaimTime: number, currentTime: number): number {
   const diffMs = currentTime - lastClaimTime;
   const hours = diffMs / 3600000;
-  return hours * MINING_RATE_PER_HR;
+  const cappedHours = Math.min(hours, MAX_MINING_HOURS);
+  return cappedHours * MINING_RATE_PER_HR;
 }
 
 function generateDashboard(user: User, botUsername: string) {
