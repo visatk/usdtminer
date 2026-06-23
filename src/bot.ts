@@ -109,7 +109,7 @@ export function createBot(token: string) {
     const totalUsers = statsQuery?.total_users || 0;
     const totalMined = statsQuery?.total_mined || 0;
 
-    const text = `👑 <b>Admin Dashboard</b>\n━━━━━━━━━━━━━━━━━━\n\n👥 <b>Total Users:</b> ${totalUsers.toLocaleString()}\n💎 <b>Total User Balances:</b> ${Number(totalMined).toFixed(4)} USDT\n\n📢 To broadcast a message to all users, use:\n<code>/broadcast Your message here</code>`;
+    const text = `👑 <b>Admin Dashboard</b>\n━━━━━━━━━━━━━━━━━━━━\n\n👥 <b>Total Users:</b> <code>${totalUsers.toLocaleString()}</code>\n💎 <b>Total User Balances:</b> <code>${Number(totalMined).toFixed(4)} USDT</code>\n\n📢 To broadcast a message to all users, use:\n<code>/broadcast Your message here</code>`;
     
     await ctx.reply(text, { parse_mode: 'HTML' });
   });
@@ -210,7 +210,7 @@ export function createBot(token: string) {
     const user: User | null = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').bind(ctx.from.id).first();
     if (!user) return;
 
-    const text = `💳 <b>My Wallet</b>\n━━━━━━━━━━━━━━━━━━\n\n💰 <b>Current Balance:</b> ${user.balance.toFixed(4)} USDT\n\n<i>Minimum withdrawal is ${MIN_WITHDRAWAL} USDT.</i>`;
+    const text = `💳 <b>My Wallet</b>\n━━━━━━━━━━━━━━━━━━━━\n\n💰 <b>Current Balance:</b> <code>${user.balance.toFixed(4)} USDT</code>\n\n<i>Minimum withdrawal is ${MIN_WITHDRAWAL} USDT.</i>`;
     const keyboard = new InlineKeyboard()
       .text('💸 Withdraw', 'withdraw').row()
       .text('🔙 Back', 'dashboard');
@@ -239,7 +239,7 @@ export function createBot(token: string) {
       const totalUsers = statsQuery?.total_users || 0;
       const totalMined = statsQuery?.total_mined || 0;
 
-      const text = `📈 <b>Global Statistics</b>\n━━━━━━━━━━━━━━━━━━\n\n👥 <b>Total Users:</b> ${totalUsers.toLocaleString()}\n💎 <b>Total USDT Mined:</b> ${Number(totalMined).toFixed(4)}\n\n<i>Keep mining to be part of our growing community!</i>`;
+      const text = `📊 <b>Global Statistics</b>\n━━━━━━━━━━━━━━━━━━━━\n\n👥 <b>Total Users:</b> <code>${totalUsers.toLocaleString()}</code>\n💎 <b>Total USDT Mined:</b> <code>${Number(totalMined).toFixed(4)}</code>\n\n<i>Keep mining to be part of our growing community!</i>`;
       const keyboard = new InlineKeyboard().text('🔙 Back', 'dashboard');
       
       await ctx.editMessageText(text, { reply_markup: keyboard, parse_mode: 'HTML' });
@@ -255,7 +255,7 @@ export function createBot(token: string) {
     if (!user) return;
 
     const refLink = `https://t.me/${ctx.me.username}?start=ref_${user.telegram_id}`;
-    const text = `🏷️ <b>Refer & Earn</b>\n━━━━━━━━━━━━━━━━━━\n\nInvite friends and earn <b>${REFERRAL_BONUS} USDT</b> for every valid referral!\n\n👥 <b>Your Total Referrals:</b> ${user.referral_count}\n💰 <b>Earnings from Referrals:</b> ${(user.referral_count * REFERRAL_BONUS).toFixed(4)} USDT\n\n👇 <b>Your Referral Link:</b>\n${refLink}`;
+    const text = `🔗 <b>Refer & Earn</b>\n━━━━━━━━━━━━━━━━━━━━\n\nInvite friends and earn <b>${REFERRAL_BONUS} USDT</b> for every valid referral!\n\n👥 <b>Your Total Referrals:</b> <code>${user.referral_count}</code>\n💰 <b>Earnings from Referrals:</b> <code>${(user.referral_count * REFERRAL_BONUS).toFixed(4)} USDT</code>\n\n👇 <b>Your Referral Link:</b>\n${refLink}`;
     
     const keyboard = new InlineKeyboard()
       .url('💬 Share Link', `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent('Join me and mine USDT for free!')}`).row()
@@ -278,27 +278,26 @@ function generateDashboard(user: User, botUsername: string) {
   const claimable = calculateClaimable(user.last_claim_time, Date.now());
   const balance = user.balance;
 
-  const text = `👋 Welcome , ${user.first_name}!
+  const text = `👋 <b>Welcome back, ${user.first_name}!</b>
 
-💎 <b>USDT Mining Dashboard</b>
-━━━━━━━━━━━━━━━━━━
-(Icon) <b>Mining Rate:</b> 0.05 USDT/hr
-(Icon) <b>Per Referral:</b> 0.25 USDT
-(Icon) <b>Balance:</b> ${balance.toFixed(4)} USDT
-(Icon) <b>Total Refs:</b> ${user.referral_count}
+🚀 <b>Aero USDT Miner</b>
+━━━━━━━━━━━━━━━━━━━━
+⚡️ <b>Mining Rate:</b> <code>0.05 USDT/hr</code>
+🎁 <b>Referral Bonus:</b> <code>0.25 USDT</code>
+💰 <b>Total Balance:</b> <code>${balance.toFixed(4)} USDT</code>
+👥 <b>Total Referrals:</b> <code>${user.referral_count}</code>
 
-🎁 <b>Claimable:</b> ${claimable.toFixed(4)} USDT ←
-Claim now!
-━━━━━━━━━━━━━━━━━━
-💬 <b>Referral Link:</b>
+💎 <b>Ready to Claim:</b> <code>${claimable.toFixed(4)} USDT</code> ⛏️
+━━━━━━━━━━━━━━━━━━━━
+🔗 <b>Your Referral Link:</b>
 https://t.me/${botUsername}?start=ref_${user.telegram_id}`;
 
   const keyboard = new InlineKeyboard()
-    .text(`💰 Claim ${claimable.toFixed(4)} USDT`, 'claim').row()
-    .url('💬 Share & Earn', `https://t.me/share/url?url=https://t.me/${botUsername}?start=ref_${user.telegram_id}&text=Join%20me%20and%20mine%20USDT%20for%20free!`).row()
+    .text(`⛏️ Claim ${claimable.toFixed(4)} USDT`, 'claim').row()
     .text('💳 My Wallet', 'wallet')
-    .text('📈 Statistics', 'stats').row()
-    .text('🏷️ Refer & Earn', 'refer');
+    .text('📊 Statistics', 'stats').row()
+    .url('🚀 Share & Earn', `https://t.me/share/url?url=https://t.me/${botUsername}?start=ref_${user.telegram_id}&text=Join%20me%20and%20mine%20USDT%20for%20free!`)
+    .text('🔗 Referrals', 'refer');
 
   return { text, keyboard };
 }
