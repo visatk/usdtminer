@@ -3,7 +3,7 @@ import { BotContext, User, QueueMessage } from './types';
 
 const MINING_RATE_PER_HR = 0.05;
 const REFERRAL_BONUS = 0.25;
-const MIN_WITHDRAWAL = 10.0;
+const MIN_WITHDRAWAL = 15.0;
 
 export function createBot(token: string) {
   const bot = new Bot<BotContext>(token);
