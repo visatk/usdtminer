@@ -1,99 +1,99 @@
+import { Context } from 'grammy';
 import { BotContext, User } from '../types';
-import { PLANS, PAYMENT_ADDRESSES, getLivePrice, verifyTronTransaction, verifyBscTransaction } from './crypto';
+import { getBNBPrice, getTRXPrice, verifyTronTransaction, verifyBscTransaction, PLANS } from './crypto';
+import { generateDashboard, EMOJIS, pe } from './ui';
 
-export async function sendPaymentDetails(ctx: BotContext, method: string, planId: number) {
+export async function sendPaymentDetails(ctx: Context & BotContext, method: string, planId: number) {
   const plan = PLANS[planId as keyof typeof PLANS];
   if (!plan) return;
 
-  const priceUSDT = plan.price;
-  let finalAmount = priceUSDT;
+  const db = ctx.env.DB;
+  let finalAmount = plan.price;
   let symbol = 'USDT';
   let address = '';
-  
-  if (method === 'USDT') {
-    address = PAYMENT_ADDRESSES.USDT_TRC20;
-    symbol = 'USDT';
-  } else if (method === 'TRX') {
-    address = PAYMENT_ADDRESSES.TRX;
-    symbol = 'TRX';
-    const livePrice = await getLivePrice('TRXUSDT');
-    if (livePrice > 0) {
-      finalAmount = priceUSDT / livePrice;
-    } else {
-      // fallback
-      finalAmount = priceUSDT * 8.5; 
-    }
-  } else if (method === 'BNB') {
-    address = PAYMENT_ADDRESSES.BNB;
-    symbol = 'BNB';
-    const livePrice = await getLivePrice('BNBUSDT');
-    if (livePrice > 0) {
-      finalAmount = priceUSDT / livePrice;
-    } else {
-      // fallback
-      finalAmount = priceUSDT / 600;
-    }
-  }
 
-  const text = `💳 <b>Payment Details</b>\n━━━━━━━━━━━━━━━━━━━━\n\nYou are upgrading to the <b>${plan.name} Plan</b>.\n\nPlease send exactly <code>${finalAmount.toFixed(6)} ${symbol}</code> to the following address:\n\n<code>${address}</code>\n\n<i>After you have sent the payment, please reply to this message with your <b>Transaction Hash (TxID)</b>.</i>`;
-  
-  await ctx.editMessageText(text, { parse_mode: 'HTML' });
+  try {
+    if (method === 'TRX') {
+      const price = await getTRXPrice();
+      finalAmount = plan.price / price;
+      symbol = 'TRX';
+      address = 'TR59Wrms64FmmDbUQPdJULdQnsUD98QeYC';
+    } else if (method === 'BNB') {
+      const price = await getBNBPrice();
+      finalAmount = plan.price / price;
+      symbol = 'BNB';
+      address = '0x26C61a35D76656EFf940444b5D7c4261Afb37c95';
+    } else if (method === 'USDT') {
+      symbol = 'USDT';
+      address = 'TR59Wrms64FmmDbUQPdJULdQnsUD98QeYC';
+    }
+
+    const stateData = JSON.stringify({ plan_id: planId, method, finalAmount, symbol, address });
+    await db.prepare('UPDATE users SET state_data = ? WHERE telegram_id = ?')
+      .bind(stateData, ctx.from?.id)
+      .run();
+
+    const text = `${pe(EMOJIS.card, '💳')} <b>Payment Details</b>
+──────────────────────────────
+You are upgrading to the <b>${plan.name} Plan</b>.
+
+Please send exactly <code>${finalAmount.toFixed(6)} ${symbol}</code> to the following address:
+
+<code>${address}</code>
+
+<i>After you have sent the payment, please reply to this message with your <b>Transaction Hash (TxID)</b>.</i>`;
+    
+    await ctx.editMessageText(text, { parse_mode: 'HTML' });
+  } catch (err) {
+    await ctx.editMessageText("Failed to generate payment details. Please try again.");
+  }
 }
 
-export async function handleTxIdInput(ctx: BotContext, user: User) {
-  const txHash = ctx.message?.text?.trim();
-  if (!txHash) return;
-  
-  // Acknowledge receipt
-  const pendingMsg = await ctx.reply(`⏳ <i>Verifying transaction <code>${txHash}</code>... This may take a few seconds.</i>`, { parse_mode: 'HTML' });
-  
+export async function handleTxIdInput(ctx: Context & BotContext, user: User) {
+  const txId = ctx.message?.text?.trim();
+  if (!txId) return;
+
+  const db = ctx.env.DB;
+  const stateData = JSON.parse(user.state_data || '{}');
+  const { plan_id, method, finalAmount, address } = stateData;
+
+  const msg = await ctx.reply(`${pe(EMOJIS.diamond, '💎')} <b>Verifying Transaction...</b>\n\nChecking the blockchain for TxID: <code>${txId}</code>\n<i>This may take a few seconds...</i>`, { parse_mode: 'HTML' });
+
   try {
-    const db = ctx.env.DB;
-    // Check if txHash already used
-    const existingTx = await db.prepare('SELECT tx_hash FROM transactions WHERE tx_hash = ?').bind(txHash).first();
-    if (existingTx) {
-      await ctx.api.editMessageText(ctx.chat!.id, pendingMsg.message_id, `❌ <b>Verification Failed</b>\nThis transaction hash has already been used.`, { parse_mode: 'HTML' });
+    const existing = await db.prepare('SELECT id FROM transactions WHERE tx_hash = ?').bind(txId).first();
+    if (existing) {
+      await ctx.api.editMessageText(ctx.chat!.id, msg.message_id, "❌ This transaction has already been used!");
       return;
     }
 
-    const stateData = JSON.parse(user.state_data || '{}');
-    const planId = stateData.plan_id;
-    const method = stateData.method;
-    const plan = PLANS[planId as keyof typeof PLANS];
-    if (!plan || !method) throw new Error("Invalid state");
-
-    let finalAmount = plan.price;
-    if (method === 'TRX') {
-      const livePrice = await getLivePrice('TRXUSDT');
-      finalAmount = livePrice > 0 ? plan.price / livePrice : plan.price * 8.5;
-    } else if (method === 'BNB') {
-      const livePrice = await getLivePrice('BNBUSDT');
-      finalAmount = livePrice > 0 ? plan.price / livePrice : plan.price / 600;
-    }
-
     let isValid = false;
+
     if (method === 'TRX' || method === 'USDT') {
-      isValid = await verifyTronTransaction(txHash, method, finalAmount);
+      isValid = await verifyTronTransaction(txId, address, finalAmount, method);
     } else if (method === 'BNB') {
-      isValid = await verifyBscTransaction(txHash, ctx.env.BSCSCAN_API_KEY || '', finalAmount);
+      isValid = await verifyBscTransaction(txId, address, finalAmount, ctx.env.BSCSCAN_API_KEY!);
     }
 
     if (isValid) {
-      // Success! Update DB
-      let statements = [
-        db.prepare('INSERT INTO transactions (tx_hash, telegram_id, amount, currency, timestamp) VALUES (?, ?, ?, ?, ?)')
-          .bind(txHash, user.telegram_id, finalAmount, method, Date.now()),
-        db.prepare('UPDATE users SET plan_id = ?, state = NULL, state_data = NULL WHERE telegram_id = ?')
-          .bind(planId, user.telegram_id)
-      ];
-      await db.batch(statements);
+      const now = Date.now();
+      await db.batch([
+        db.prepare('INSERT INTO transactions (telegram_id, tx_hash, amount, currency, created_at) VALUES (?, ?, ?, ?, ?)').bind(user.telegram_id, txId, finalAmount, method, now),
+        db.prepare('UPDATE users SET plan_id = ?, state = NULL, state_data = NULL WHERE telegram_id = ?').bind(plan_id, user.telegram_id)
+      ]);
 
-      await ctx.api.editMessageText(ctx.chat!.id, pendingMsg.message_id, `✅ <b>Payment Verified!</b>\n\nCongratulations! You have been upgraded to the <b>${plan.name} Plan</b>! Your new mining rate is ${plan.rate} USDT/hr.\n\nUse /start to see your new dashboard.`, { parse_mode: 'HTML' });
+      const planName = PLANS[plan_id as keyof typeof PLANS]?.name || 'Premium';
+      await ctx.api.editMessageText(ctx.chat!.id, msg.message_id, `${pe(EMOJIS.welcome, '✅')} <b>Payment Verified!</b>\n\nYou have been upgraded to the <b>${planName} Plan</b>. Your mining rate has been boosted!`, { parse_mode: 'HTML' });
+      
+      const updatedUser: User | null = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').bind(user.telegram_id).first();
+      if (updatedUser) {
+        const { text, keyboard } = generateDashboard(updatedUser, ctx.me!.username);
+        await ctx.reply(text, { reply_markup: keyboard, parse_mode: 'HTML' });
+      }
     } else {
-      await ctx.api.editMessageText(ctx.chat!.id, pendingMsg.message_id, `❌ <b>Verification Failed</b>\n\nWe could not verify this transaction. Ensure the transaction is confirmed on the blockchain, the amount is correct, and it was sent to the correct address.\n\nSend the TxID again to retry, or use /start to cancel.`, { parse_mode: 'HTML' });
+      await ctx.api.editMessageText(ctx.chat!.id, msg.message_id, "❌ <b>Verification Failed.</b>\n\nWe could not find a confirmed transaction matching the exact amount and address. If you just sent it, please wait a minute and send the TxID again.", { parse_mode: 'HTML' });
     }
   } catch (err) {
-    console.error(err);
-    await ctx.api.editMessageText(ctx.chat!.id, pendingMsg.message_id, `⚠️ An error occurred while verifying the transaction. Please try again later.`, { parse_mode: 'HTML' });
+    console.error("Verification error:", err);
+    await ctx.api.editMessageText(ctx.chat!.id, msg.message_id, "⚠️ Error communicating with the blockchain. Please try again later.");
   }
 }
