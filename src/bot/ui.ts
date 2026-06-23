@@ -44,18 +44,18 @@ export function generateDashboard(user: User, botUsername: string) {
 
   const inline_keyboard = [
     [
-      { text: `🚀 Claim ${claimable.toFixed(4)} USDT`, callback_data: 'claim', style: 'success' }
+      { text: `🚀 Claim ${claimable.toFixed(4)} USDT`, callback_data: 'claim' }
     ],
     [
-      { text: '⭐ Upgrade Plan', callback_data: 'upgrade_plan', style: 'primary' },
-      { text: '💳 My Wallet', callback_data: 'wallet', style: 'secondary' }
+      { text: '⭐ Upgrade Plan', callback_data: 'upgrade_plan' },
+      { text: '💳 My Wallet', callback_data: 'wallet' }
     ],
     [
-      { text: '📊 Statistics', callback_data: 'stats', style: 'secondary' },
-      { text: '🎁 Referrals', callback_data: 'refer', style: 'secondary' }
+      { text: '📊 Statistics', callback_data: 'stats' },
+      { text: '🎁 Referrals', callback_data: 'refer' }
     ],
     [
-      { text: '📣 Share & Earn', url: `https://t.me/share/url?url=https://t.me/${botUsername}?start=ref_${user.telegram_id}&text=Join%20me%20and%20mine%20USDT%20for%20free!`, style: 'secondary' }
+      { text: '📣 Share & Earn', url: `https://t.me/share/url?url=https://t.me/${botUsername}?start=ref_${user.telegram_id}&text=Join%20me%20and%20mine%20USDT%20for%20free!` }
     ]
   ];
 

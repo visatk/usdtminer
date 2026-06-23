@@ -65,8 +65,8 @@ export function registerCallbacks(bot: Bot<BotContext>) {
 
     const keyboard = {
       inline_keyboard: [
-        [{ text: '💳 Withdraw', callback_data: 'withdraw', style: 'primary' }],
-        [{ text: '🔙 Back', callback_data: 'dashboard', style: 'secondary' }]
+        [{ text: '💳 Withdraw', callback_data: 'withdraw' }],
+        [{ text: '🔙 Back', callback_data: 'dashboard' }]
       ]
     };
     
@@ -102,7 +102,7 @@ export function registerCallbacks(bot: Bot<BotContext>) {
 
       const keyboard = {
         inline_keyboard: [
-          [{ text: '🔙 Back', callback_data: 'dashboard', style: 'secondary' }]
+          [{ text: '🔙 Back', callback_data: 'dashboard' }]
         ]
       };
       
@@ -129,8 +129,8 @@ export function registerCallbacks(bot: Bot<BotContext>) {
     
     const keyboard = {
       inline_keyboard: [
-        [{ text: '💬 Share Link', url: `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent('Join me and mine USDT for free!')}`, style: 'primary' }],
-        [{ text: '🔙 Back', callback_data: 'dashboard', style: 'secondary' }]
+        [{ text: '💬 Share Link', url: `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent('Join me and mine USDT for free!')}` }],
+        [{ text: '🔙 Back', callback_data: 'dashboard' }]
       ]
     };
     
@@ -153,9 +153,9 @@ Rate: 1.20 USDT/hr`;
     
     const keyboard = {
       inline_keyboard: [
-        [{ text: '⭐ Buy Pro (10 USDT)', callback_data: 'buy_plan_1', style: 'primary' }],
-        [{ text: '💎 Buy Elite (50 USDT)', callback_data: 'buy_plan_2', style: 'success' }],
-        [{ text: '🔙 Back', callback_data: 'dashboard', style: 'secondary' }]
+        [{ text: '⭐ Buy Pro (10 USDT)', callback_data: 'buy_plan_1' }],
+        [{ text: '💎 Buy Elite (50 USDT)', callback_data: 'buy_plan_2' }],
+        [{ text: '🔙 Back', callback_data: 'dashboard' }]
       ]
     };
       
@@ -175,10 +175,10 @@ Select your preferred cryptocurrency to pay with:`;
     
     const keyboard = {
       inline_keyboard: [
-        [{ text: 'USDT (TRC20)', callback_data: `pay_method_USDT_${planId}`, style: 'primary' }],
-        [{ text: 'TRX (Tron)', callback_data: `pay_method_TRX_${planId}`, style: 'primary' }],
-        [{ text: 'BNB (BEP20)', callback_data: `pay_method_BNB_${planId}`, style: 'primary' }],
-        [{ text: '🔙 Back', callback_data: 'upgrade_plan', style: 'secondary' }]
+        [{ text: 'USDT (TRC20)', callback_data: `pay_method_USDT_${planId}` }],
+        [{ text: 'TRX (Tron)', callback_data: `pay_method_TRX_${planId}` }],
+        [{ text: 'BNB (BEP20)', callback_data: `pay_method_BNB_${planId}` }],
+        [{ text: '🔙 Back', callback_data: 'upgrade_plan' }]
       ]
     };
       
