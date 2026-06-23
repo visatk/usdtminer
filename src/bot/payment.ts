@@ -1,7 +1,7 @@
 import { Context } from 'grammy';
 import { BotContext, User } from '../types';
 import { getLivePrice, verifyTronTransaction, verifyBscTransaction, PLANS } from './crypto';
-import { generateDashboard, EMOJIS, pe } from './ui';
+import { generateDashboard } from './ui';
 
 export async function sendPaymentDetails(ctx: Context & BotContext, method: string, planId: number) {
   const plan = PLANS[planId as keyof typeof PLANS];
@@ -33,7 +33,7 @@ export async function sendPaymentDetails(ctx: Context & BotContext, method: stri
       .bind(stateData, ctx.from?.id)
       .run();
 
-    const text = `${pe(EMOJIS.card, '💳')} <b>Payment Details</b>
+    const text = `💳 <b>Payment Details</b>
 ──────────────────────────────
 You are upgrading to the <b>${plan.name} Plan</b>.
 
@@ -57,7 +57,7 @@ export async function handleTxIdInput(ctx: Context & BotContext, user: User) {
   const stateData = JSON.parse(user.state_data || '{}');
   const { plan_id, method, finalAmount, address } = stateData;
 
-  const msg = await ctx.reply(`${pe(EMOJIS.diamond, '💎')} <b>Verifying Transaction...</b>\n\nChecking the blockchain for TxID: <code>${txId}</code>\n<i>This may take a few seconds...</i>`, { parse_mode: 'HTML' });
+  const msg = await ctx.reply(`💎 <b>Verifying Transaction...</b>\n\nChecking the blockchain for TxID: <code>${txId}</code>\n<i>This may take a few seconds...</i>`, { parse_mode: 'HTML' });
 
   try {
     const existing = await db.prepare('SELECT id FROM transactions WHERE tx_hash = ?').bind(txId).first();
@@ -82,7 +82,7 @@ export async function handleTxIdInput(ctx: Context & BotContext, user: User) {
       ]);
 
       const planName = PLANS[plan_id as keyof typeof PLANS]?.name || 'Premium';
-      await ctx.api.editMessageText(ctx.chat!.id, msg.message_id, `${pe(EMOJIS.welcome, '✅')} <b>Payment Verified!</b>\n\nYou have been upgraded to the <b>${planName} Plan</b>. Your mining rate has been boosted!`, { parse_mode: 'HTML' });
+      await ctx.api.editMessageText(ctx.chat!.id, msg.message_id, `✅ <b>Payment Verified!</b>\n\nYou have been upgraded to the <b>${planName} Plan</b>. Your mining rate has been boosted!`, { parse_mode: 'HTML' });
       
       const updatedUser: User | null = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').bind(user.telegram_id).first();
       if (updatedUser) {
