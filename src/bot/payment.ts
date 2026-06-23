@@ -86,7 +86,7 @@ export async function handleTxIdInput(ctx: Context & BotContext, user: User) {
       
       const updatedUser: User | null = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').bind(user.telegram_id).first();
       if (updatedUser) {
-        const botUsername = ctx.me?.username || 'AgroUSDTbot';
+        const botUsername = ctx.me?.username || 'AeroUSDTMinerBot';
         const { text, keyboard } = generateDashboard(updatedUser, botUsername);
         await ctx.reply(text, { reply_markup: keyboard, parse_mode: 'HTML' });
       }

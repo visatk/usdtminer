@@ -26,7 +26,7 @@ export function registerCallbacks(bot: Bot<BotContext>) {
         user.balance += claimable;
         user.last_claim_time = now;
         
-        const botUsername = ctx.me?.username || 'AgroUSDTbot';
+        const botUsername = ctx.me?.username || 'AeroUSDTMinerBot';
         const { text, keyboard } = generateDashboard(user, botUsername);
         await ctx.editMessageText(text, { reply_markup: keyboard, parse_mode: 'HTML' });
         await ctx.answerCallbackQuery(`Successfully claimed ${claimable.toFixed(4)} USDT!`);
@@ -43,7 +43,7 @@ export function registerCallbacks(bot: Bot<BotContext>) {
     const user = ctx.sessionUser;
     if (!user) return;
     
-    const botUsername = ctx.me?.username || 'AgroUSDTbot';
+    const botUsername = ctx.me?.username || 'AeroUSDTMinerBot';
     const { text, keyboard } = generateDashboard(user, botUsername);
     await ctx.editMessageText(text, { reply_markup: keyboard, parse_mode: 'HTML' });
     await ctx.answerCallbackQuery();
@@ -117,7 +117,7 @@ export function registerCallbacks(bot: Bot<BotContext>) {
     const user = ctx.sessionUser;
     if (!user) return;
 
-    const botUsername = ctx.me?.username || 'AgroUSDTbot';
+    const botUsername = ctx.me?.username || 'AeroUSDTMinerBot';
     const refLink = `https://t.me/${botUsername}?start=ref_${user.telegram_id}`;
     const text = `🏷 <b>Refer & Earn</b>
 ──────────────────────────────

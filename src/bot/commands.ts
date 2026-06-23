@@ -52,7 +52,7 @@ export function registerCommands(bot: Bot<BotContext>) {
       }
 
       if (user) {
-        const botUsername = ctx.me?.username || 'AgroUSDTbot';
+        const botUsername = ctx.me?.username || 'AeroUSDTMinerBot';
         const { text, keyboard } = generateDashboard(user, botUsername);
         await ctx.reply(text, { reply_markup: keyboard, parse_mode: 'HTML' });
       }
