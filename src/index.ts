@@ -1,7 +1,7 @@
 import { webhookCallback, GrammyError } from 'grammy';
 import { createBot } from './bot/index';
 import { Env, QueueMessage } from './types';
-import { MINING_RATE_PER_HR } from './bot/ui';
+import { calculateClaimable } from './bot/ui';
 
 const THRESHOLD = 0.0010;
 
@@ -18,24 +18,26 @@ export default {
 
   async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
     const now = Date.now();
-    const requiredDiffMs = THRESHOLD / (MINING_RATE_PER_HR / 3600000);
-    const timeThreshold = now - requiredDiffMs;
-    // We only want to ping users who JUST crossed the threshold in the last hour to prevent spamming them every hour
+    // A loose timeThreshold: query users who haven't claimed in at least 10 minutes
+    const timeThreshold = now - (10 * 60 * 1000);
     const oneHourMs = 3600000;
     const lowerBoundThreshold = timeThreshold - oneHourMs;
 
     try {
       const { results } = await env.DB.prepare(
-        'SELECT telegram_id, last_claim_time FROM users WHERE last_claim_time <= ? AND last_claim_time > ?'
+        'SELECT telegram_id, last_claim_time, plan_id FROM users WHERE last_claim_time <= ? AND last_claim_time > ?'
       ).bind(timeThreshold, lowerBoundThreshold).all();
 
       if (results && results.length > 0) {
         let currentBatch: MessageSendRequest<QueueMessage>[] = [];
         
         for (const row of results) {
-          const hours = ((now - (row.last_claim_time as number)) / 3600000);
-          const claimable = Math.min(hours, 24) * MINING_RATE_PER_HR;
-          currentBatch.push({ body: { type: 'claim_reminder', telegram_id: row.telegram_id as number, claimable_amount: claimable } });
+          const mockUser = { plan_id: row.plan_id || 0, last_claim_time: row.last_claim_time };
+          const claimable = calculateClaimable(mockUser as any, now);
+          
+          if (claimable >= THRESHOLD) {
+            currentBatch.push({ body: { type: 'claim_reminder', telegram_id: row.telegram_id as number, claimable_amount: claimable } });
+          }
           
           if (currentBatch.length === 100) {
             await env.QUEUE.sendBatch(currentBatch);
