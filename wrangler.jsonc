@@ -20,7 +20,7 @@
     {
       "binding": "DB",
       "database_name": "prod-d1",
-      "database_id": "<unique-ID-for-your-database>"
+      "database_id": "fd35fa96-3938-449d-87d5-80ec224a3403"
     }
   ],
   "queues": {
