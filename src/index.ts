@@ -1,8 +1,8 @@
 import { webhookCallback, GrammyError } from 'grammy';
-import { createBot } from './bot';
+import { createBot } from './bot/index';
 import { Env, QueueMessage } from './types';
+import { MINING_RATE_PER_HR } from './bot/ui';
 
-const MINING_RATE_PER_HR = 0.05;
 const THRESHOLD = 0.0010;
 
 export default {
