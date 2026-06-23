@@ -1,6 +1,7 @@
 import { Bot, InlineKeyboard } from 'grammy';
 import { BotContext, User } from '../types';
 import { calculateClaimable, generateDashboard, REFERRAL_BONUS, MIN_WITHDRAWAL } from './ui';
+import { sendPaymentDetails } from './payment';
 
 export function registerCallbacks(bot: Bot<BotContext>) {
   bot.callbackQuery('claim', async (ctx) => {
@@ -149,11 +150,9 @@ export function registerCallbacks(bot: Bot<BotContext>) {
       .run();
       
     const text = `⏳ <b>Payment Instructions</b>\n━━━━━━━━━━━━━━━━━━━━\n\nMethod: <b>${method}</b>\n\n<i>Generating deposit address and calculating live amount...</i>`;
+    await ctx.editMessageText(text, { parse_mode: 'HTML' });
     
-    // We update the UI to let the user know it's loading, then trigger the API logic in background or just wait if it's fast enough.
-    // Actually, let's just trigger the sendPaymentDetails handler to avoid blocking
-    // We will emit a custom event or just call a function.
-    // Since we are in the callback, we can just call the API directly here but grammy recommends answering early.
-    import('./payment').then(m => m.sendPaymentDetails(ctx, method, planId));
+    // Actually await the payment details response
+    await sendPaymentDetails(ctx, method, planId);
   });
 }
