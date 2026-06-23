@@ -13,6 +13,10 @@ export function registerCommands(bot: Bot<BotContext>) {
     const now = Date.now();
 
     try {
+      await db.prepare('UPDATE users SET first_name = ?, state = NULL, state_data = NULL WHERE telegram_id = ?')
+          .bind(firstName, telegramId)
+          .run();
+
       let user: User | null = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').bind(telegramId).first();
 
       if (!user) {
@@ -110,6 +114,17 @@ export function registerCommands(bot: Bot<BotContext>) {
     } catch (err) {
       console.error("Broadcast queue error:", err);
       await ctx.reply("Failed to queue broadcast. Please check logs.");
+    }
+  });
+
+  bot.on('message:text', async (ctx) => {
+    const db = ctx.env.DB;
+    const user: User | null = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').bind(ctx.from.id).first();
+    
+    if (user && user.state === 'awaiting_txid') {
+      const { handleTxIdInput } = await import('./payment');
+      await handleTxIdInput(ctx, user);
+      return;
     }
   });
 }

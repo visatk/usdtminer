@@ -12,7 +12,7 @@ export function registerCallbacks(bot: Bot<BotContext>) {
       const user: User | null = await db.prepare('SELECT * FROM users WHERE telegram_id = ?').bind(telegramId).first();
       if (!user) return ctx.answerCallbackQuery('User not found. Try /start.');
 
-      const claimable = calculateClaimable(user.last_claim_time, now);
+      const claimable = calculateClaimable(user, now);
       if (claimable > 0) {
         const result = await db.prepare('UPDATE users SET balance = balance + ?, last_claim_time = ? WHERE telegram_id = ? AND last_claim_time = ?')
           .bind(claimable, now, telegramId, user.last_claim_time)
@@ -105,5 +105,55 @@ export function registerCallbacks(bot: Bot<BotContext>) {
     
     await ctx.editMessageText(text, { reply_markup: keyboard, parse_mode: 'HTML', disable_web_page_preview: true });
     await ctx.answerCallbackQuery();
+  });
+
+  bot.callbackQuery('upgrade_plan', async (ctx) => {
+    const text = `⭐ <b>Upgrade Mining Plan</b>\n━━━━━━━━━━━━━━━━━━━━\n\nChoose a plan to boost your mining rate. Plans are permanent.\n\n<b>1. Pro Plan</b>\nPrice: 10 USDT\nRate: 0.20 USDT/hr\n\n<b>2. Elite Plan</b>\nPrice: 50 USDT\nRate: 1.20 USDT/hr`;
+    
+    const keyboard = new InlineKeyboard()
+      .text('🛒 Buy Pro (10 USDT)', 'buy_plan_1').row()
+      .text('🛒 Buy Elite (50 USDT)', 'buy_plan_2').row()
+      .text('🔙 Back', 'dashboard');
+      
+    await ctx.editMessageText(text, { reply_markup: keyboard, parse_mode: 'HTML' });
+    await ctx.answerCallbackQuery();
+  });
+
+  bot.callbackQuery(/^buy_plan_(\d+)$/, async (ctx) => {
+    const planId = parseInt(ctx.match[1], 10);
+    const planName = planId === 1 ? 'Pro' : 'Elite';
+    
+    const text = `🛒 <b>Select Payment Method</b>\n━━━━━━━━━━━━━━━━━━━━\n\nYou are buying the <b>${planName} Plan</b>.\n\nSelect your preferred cryptocurrency to pay with:`;
+    const keyboard = new InlineKeyboard()
+      .text('USDT (TRC20)', `pay_method_USDT_${planId}`).row()
+      .text('TRX (Tron)', `pay_method_TRX_${planId}`).row()
+      .text('BNB (BEP20)', `pay_method_BNB_${planId}`).row()
+      .text('🔙 Back', 'upgrade_plan');
+      
+    await ctx.editMessageText(text, { reply_markup: keyboard, parse_mode: 'HTML' });
+    await ctx.answerCallbackQuery();
+  });
+
+  bot.callbackQuery(/^pay_method_(USDT|TRX|BNB)_(\d+)$/, async (ctx) => {
+    const method = ctx.match[1];
+    const planId = parseInt(ctx.match[2], 10);
+    
+    // Defer the callback answer because we might do an API call
+    await ctx.answerCallbackQuery('Generating payment details...');
+    
+    const db = ctx.env.DB;
+    // Set state
+    const stateData = JSON.stringify({ plan_id: planId, method: method });
+    await db.prepare('UPDATE users SET state = ?, state_data = ? WHERE telegram_id = ?')
+      .bind('awaiting_txid', stateData, ctx.from.id)
+      .run();
+      
+    const text = `⏳ <b>Payment Instructions</b>\n━━━━━━━━━━━━━━━━━━━━\n\nMethod: <b>${method}</b>\n\n<i>Generating deposit address and calculating live amount...</i>`;
+    
+    // We update the UI to let the user know it's loading, then trigger the API logic in background or just wait if it's fast enough.
+    // Actually, let's just trigger the sendPaymentDetails handler to avoid blocking
+    // We will emit a custom event or just call a function.
+    // Since we are in the callback, we can just call the API directly here but grammy recommends answering early.
+    import('./payment').then(m => m.sendPaymentDetails(ctx, method, planId));
   });
 }

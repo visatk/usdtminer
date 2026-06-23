@@ -9,6 +9,7 @@ export interface Env {
   QUEUE: Queue<QueueMessage>;
   TELEGRAM_BOT_TOKEN: string;
   ADMIN_TELEGRAM_ID?: string;
+  BSCSCAN_API_KEY?: string;
 }
 
 export interface User {
@@ -20,6 +21,9 @@ export interface User {
   referrer_id: number | null;
   created_at: number;
   is_admin: number;
+  plan_id: number;
+  state: string | null;
+  state_data: string | null;
 }
 
 export interface BotContext extends Context {
