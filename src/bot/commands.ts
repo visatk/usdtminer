@@ -2,6 +2,8 @@ import { Bot } from 'grammy';
 import { BotContext, User, QueueMessage } from '../types';
 import { REFERRAL_BONUS, generateDashboard } from './ui';
 
+import { cachedStats, STATS_CACHE_TTL, updateCachedStats } from './cache';
+
 export function registerCommands(bot: Bot<BotContext>) {
   bot.command('start', async (ctx) => {
     const telegramId = ctx.from?.id;
@@ -70,9 +72,19 @@ export function registerCommands(bot: Bot<BotContext>) {
     }
 
     const db = ctx.env.DB;
-    const statsQuery: any = await db.prepare('SELECT COUNT(*) as total_users, SUM(balance) as total_mined FROM users').first();
-    const totalUsers = statsQuery?.total_users || 0;
-    const totalMined = statsQuery?.total_mined || 0;
+    const now = Date.now();
+    let totalUsers = 0;
+    let totalMined = 0;
+
+    if (cachedStats && (now - cachedStats.timestamp < STATS_CACHE_TTL)) {
+      totalUsers = cachedStats.totalUsers;
+      totalMined = cachedStats.totalMined;
+    } else {
+      const statsQuery: any = await db.prepare('SELECT COUNT(*) as total_users, SUM(balance) as total_mined FROM users').first();
+      totalUsers = statsQuery?.total_users || 0;
+      totalMined = statsQuery?.total_mined || 0;
+      updateCachedStats(totalUsers, totalMined);
+    }
 
     const text = `👑 <b>Admin Dashboard</b>
 ──────────────────────────────

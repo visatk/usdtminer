@@ -33,14 +33,16 @@ export function generateDashboard(user: User, botUsername: string) {
 💎 <b>USDT Mining Dashboard</b>
 ──────────────────────────────
 ⭐ Current Plan: <code>${plan.name}</code>
+🟢 Status: <b>Active</b>
 📱 Mining Rate: <code>${plan.rate} USDT/hr</code>
 💰 Total Balance: <code>${balance.toFixed(4)} USDT</code>
 📈 Total Referrals: <code>${user.referral_count}</code>
 
-🎁 <b>Ready to Claim:</b> <code>${claimable.toFixed(4)} USDT</code>
+🎁 <b>Ready to Claim:</b> 
+<blockquote expandable><code>${claimable.toFixed(6)} USDT</code></blockquote>
 ──────────────────────────────
 💬 <b>Your Referral Link:</b>
-<code>https://t.me/${botUsername}?start=ref_${user.telegram_id}</code>`;
+<blockquote expandable><code>https://t.me/${botUsername}?start=ref_${user.telegram_id}</code></blockquote>`;
 
   const inline_keyboard = [
     [
@@ -52,6 +54,9 @@ export function generateDashboard(user: User, botUsername: string) {
     ],
     [
       { text: '📊 Statistics', callback_data: 'stats' },
+      { text: '🔄 Refresh', callback_data: 'refresh' }
+    ],
+    [
       { text: '🎁 Referrals', callback_data: 'refer' }
     ],
     [

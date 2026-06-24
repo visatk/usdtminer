@@ -2,6 +2,7 @@ import { Bot } from 'grammy';
 import { BotContext, User } from '../types';
 import { calculateClaimable, generateDashboard, REFERRAL_BONUS, MIN_WITHDRAWAL } from './ui';
 import { sendPaymentDetails } from './payment';
+import { cachedStats, STATS_CACHE_TTL, updateCachedStats } from './cache';
 
 export function registerCallbacks(bot: Bot<BotContext>) {
   bot.callbackQuery('claim', async (ctx) => {
@@ -49,6 +50,21 @@ export function registerCallbacks(bot: Bot<BotContext>) {
     await ctx.answerCallbackQuery();
   });
 
+  bot.callbackQuery('refresh', async (ctx) => {
+    const user = ctx.sessionUser;
+    if (!user) return;
+    
+    const botUsername = ctx.me?.username || 'AeroUSDTMinerBot';
+    const { text, keyboard } = generateDashboard(user, botUsername);
+    try {
+      await ctx.editMessageText(text, { reply_markup: keyboard, parse_mode: 'HTML' });
+      await ctx.answerCallbackQuery('Dashboard Refreshed 🔄');
+    } catch (err) {
+      // Ignore "message is not modified" error which happens if they click refresh too fast
+      await ctx.answerCallbackQuery('Up to date!');
+    }
+  });
+
   bot.callbackQuery('wallet', async (ctx) => {
     const user = ctx.sessionUser;
     if (!user) return;
@@ -93,11 +109,22 @@ export function registerCallbacks(bot: Bot<BotContext>) {
 
   bot.callbackQuery('stats', async (ctx) => {
     const db = ctx.env.DB;
+    const now = Date.now();
     
     try {
-      const statsQuery: any = await db.prepare('SELECT COUNT(*) as total_users, SUM(balance) as total_mined FROM users').first();
-      const totalUsers = statsQuery?.total_users || 0;
-      const totalMined = statsQuery?.total_mined || 0;
+      let totalUsers = 0;
+      let totalMined = 0;
+
+      if (cachedStats && (now - cachedStats.timestamp < STATS_CACHE_TTL)) {
+        totalUsers = cachedStats.totalUsers;
+        totalMined = cachedStats.totalMined;
+      } else {
+        const statsQuery: any = await db.prepare('SELECT COUNT(*) as total_users, SUM(balance) as total_mined FROM users').first();
+        totalUsers = statsQuery?.total_users || 0;
+        totalMined = statsQuery?.total_mined || 0;
+        
+        updateCachedStats(totalUsers, totalMined);
+      }
 
       const text = `📊 <b>Global Statistics</b>
 ──────────────────────────────
